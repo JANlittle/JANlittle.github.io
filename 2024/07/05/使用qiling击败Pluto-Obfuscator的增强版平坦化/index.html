@@ -1,0 +1,227 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>使用qiling击败Pluto-Obfuscator的增强版平坦化 | JANlittle's Blog</title><meta name="author" content="JANlittle"><meta name="copyright" content="JANlittle"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="好久前弄的，补个档。 概述 R1mao👴在2022年为Pluto-Obfuscator加了个新的控制流平坦化算法，旨在对抗一般的静态&#x2F;动态去混淆脚本。然而他的算法可以被”动态模拟执行+BFS探索真实块“所破解。 不过这个去混淆算法没什么实用价值，因为Pluto-Obfuscator已经长时间无人维护了，R1mao👴的这个算法也没人用力，顶多就CTF偶尔有人炒冷饭吧，破它就当图个乐。 修改后的q">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用qiling击败Pluto-Obfuscator的增强版平坦化">
+<meta property="og:url" content="https://janlittle.github.io/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/index.html">
+<meta property="og:site_name" content="JANlittle&#39;s Blog">
+<meta property="og:description" content="好久前弄的，补个档。 概述 R1mao👴在2022年为Pluto-Obfuscator加了个新的控制流平坦化算法，旨在对抗一般的静态&#x2F;动态去混淆脚本。然而他的算法可以被”动态模拟执行+BFS探索真实块“所破解。 不过这个去混淆算法没什么实用价值，因为Pluto-Obfuscator已经长时间无人维护了，R1mao👴的这个算法也没人用力，顶多就CTF偶尔有人炒冷饭吧，破它就当图个乐。 修改后的q">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://janlittle.github.io/images/misc/default_cover2.png">
+<meta property="article:published_time" content="2024-07-04T16:50:14.000Z">
+<meta property="article:modified_time" content="2024-07-05T14:38:57.481Z">
+<meta property="article:author" content="JANlittle">
+<meta property="article:tag" content="控制流平坦化">
+<meta property="article:tag" content="模拟执行">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://janlittle.github.io/images/misc/default_cover2.png"><link rel="shortcut icon" href="/images/misc/avatar.jpg"><link rel="canonical" href="https://janlittle.github.io/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.13.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":230},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '使用qiling击败Pluto-Obfuscator的增强版平坦化',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-07-05 22:38:57'
+}</script><script>(win=>{
+      win.saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+    
+      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        script.onerror = reject
+        script.onload = script.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          script.onload = script.onreadystatechange = null
+          resolve()
+        }
+
+        Object.keys(attr).forEach(key => {
+          script.setAttribute(key, attr[key])
+        })
+
+        document.head.appendChild(script)
+      })
+    
+      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onerror = reject
+        link.onload = link.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          link.onload = link.onreadystatechange = null
+          resolve()
+        }
+        document.head.appendChild(link)
+      })
+    
+      win.activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })(window)</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/images/misc/avatar.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><hr class="custom-hr"/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/images/misc/default_cover2.png')"><nav id="nav"><span id="blog-info"><a href="/" title="JANlittle's Blog"><span class="site-name">JANlittle's Blog</span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">使用qiling击败Pluto-Obfuscator的增强版平坦化</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2024-07-04T16:50:14.000Z" title="发表于 2024-07-05 00:50:14">2024-07-05</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2024-07-05T14:38:57.481Z" title="更新于 2024-07-05 22:38:57">2024-07-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Deobfuscate/">Deobfuscate</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="使用qiling击败Pluto-Obfuscator的增强版平坦化"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><p>好久前弄的，补个档。</p>
+<h2 id="概述">概述</h2>
+<p>R1mao👴在2022年为<a target="_blank" rel="noopener" href="https://github.com/bluesadi/Pluto/tree/d454661737a688554e31d0711d5863e41ae894ae"><code>Pluto-Obfuscator</code></a>加了个<a target="_blank" rel="noopener" href="https://bbs.kanxue.com/thread-274778.htm">新的控制流平坦化算法</a>，旨在对抗一般的静态/动态去混淆脚本。然而他的算法可以被”动态模拟执行+BFS探索真实块“所破解。</p>
+<p>不过这个去混淆算法没什么实用价值，因为<a target="_blank" rel="noopener" href="https://github.com/bluesadi/Pluto/tree/d454661737a688554e31d0711d5863e41ae894ae"><code>Pluto-Obfuscator</code></a>已经长时间无人维护了，R1mao👴的这个算法也没人用力，顶多就CTF偶尔有人炒冷饭吧，破它就当图个乐。</p>
+<p>修改后的qiling脚本可以在这里找到：<a target="_blank" rel="noopener" href="https://github.com/JANlittle/qiling/tree/dev">https://github.com/JANlittle/qiling/tree/dev</a></p>
+<h2 id="R1mao👴的算法干了啥？">R1mao👴的算法干了啥？</h2>
+<p>一般的OLLVM平坦化中的真实块会对状态变量直接赋新值来确定它的后继。那么一般的静态对抗手法就是定位真实块对状态变量的赋值，并查找这个状态变量对应的真实块，从而确定真实块后继；一般的动态对抗手法就是遍历并模拟执行每个真实块，探索它的后继块。</p>
+<p>R1mao👴的算法改进如下：</p>
+<ol>
+<li>每个真实块都会被分配一个key变量和访问标志位。</li>
+<li>每个真实块第一次被访问时，都会修改其后继所有块（包括后继的后继的后继…）的key变量。</li>
+<li>只有以正确顺序访问真实块，才能依次正确获得后继块key变量，计算正确的后继块，保证控制流的正确。</li>
+</ol>
+<p>这样有什么好处？</p>
+<ul>
+<li>对于静态分析去平坦化，其实只要把状态变量的修改方式改一下就够了，静态分析去平坦化方案通用性基本很低。这个增强型算法很大程度上增加了状态变量修改方式的复杂性，所以目前的静态分析去平坦化脚本应该都没办法去除，需要手动修改。</li>
+<li>对于模拟执行去平坦化，因为目前的模拟执行去平坦化就是单纯遍历真实块，探索每个真实块的后继块而已，没有考虑真实块间的执行顺序，所以是无法更新出正确的key变量，从而导致控制流分析出错。</li>
+</ul>
+<h2 id="如何对抗？">如何对抗？</h2>
+<p>其实很简单，顺着R1mao的思路就可以了：<strong>如果不按真实的控制流执行真实块的话就无法获取正确的后继块，那我模拟执行的时候就模拟真实块的执行顺序不就好了！</strong></p>
+<p>我们可以像BFS遍历图那样，使用BFS遍历访问每个真实块：</p>
+<ol>
+<li>从函数的起始块开始，探索真实块的后继块，将未访问过的后继块推入队列中，同时保存其运行时状态。</li>
+<li>从队列中取出新的真实块并重复1，直到每个块都被访问过。</li>
+<li>我们已经获取到所有真实块及其后继块的关系，直接重建控制流就好了！</li>
+</ol>
+<p>在访问和执行块时，我们每次都会保存其运行状态，这样我们就可以完整维护每一条执行路径，保存key变量，恢复出真正的控制流。</p>
+<p>在具体实现上，本来想用qiling框架自己写一个的，但没想到qiling的IDA插件已经实现了一个去平坦化方案，所以我就直接在它的基础上改进了，主要就是修改了<code>_search_path</code>和<code>_guide_hook</code>方法：<a target="_blank" rel="noopener" href="https://github.com/JANlittle/qiling/blob/dev/qiling/extensions/idaplugin/qilingida.py">https://github.com/JANlittle/qiling/blob/dev/qiling/extensions/idaplugin/qilingida.py</a></p>
+<p>此外，我还修改了下qiling去平坦化的一些东西：</p>
+<ul>
+<li>修改了分配块、预分配快、虚假块、真实块的识别方式等。用户需要自行决定虚假块的识别函数。</li>
+<li>去混淆前需要指定是否要先执行整个程序到某个位置，这主要是为了初始化动态库和对抗<code>Pluto-Obfuscator</code>的全局加密。</li>
+<li>去混淆前需要指定哪些函数在执行过程中不要跳过，因为去混淆时碰到函数调用默认是跳过的，但遇到例如这个增强版平坦化时，有些函数还是不能跳过的。</li>
+<li>去混淆前需要指定哪些函数调用需要patch掉，例如这个增强版平坦化会为每个真实块添加更新key变量的函数，patch的时候将其去掉可以让最终结果更好看。patch的范围是由IDA微码决定的。</li>
+</ul>
+<h2 id="效果">效果</h2>
+<p><a target="_blank" rel="noopener" href="https://github.com/bluesadi/Pluto/tree/d454661737a688554e31d0711d5863e41ae894ae"><code>Pluto-Obfuscator</code></a>给的官方例子，只开<strong>Control Flow Flattening Enhanced</strong>：</p>
+<p><img src="/images%5C%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96%5Cimage-20240705215827414.png" alt="image-20240705215827414"></p>
+<p>去混淆后：</p>
+<p><img src="/images%5C%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96%5Cimage-20240705222308406.png" alt="image-20240705222308406"></p>
+<p>对于ACTF 2023的obfuse也是轻松秒，只要先处理掉indirect call和indirect jump就行：</p>
+<p><img src="/images%5C%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96%5Cimage-20240705223008439.png" alt="image-20240705223008439"></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://JANlittle.github.io">JANlittle</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://janlittle.github.io/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/">https://janlittle.github.io/2024/07/05/使用qiling击败Pluto-Obfuscator的增强版平坦化/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://JANlittle.github.io" target="_blank">JANlittle's Blog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E6%8E%A7%E5%88%B6%E6%B5%81%E5%B9%B3%E5%9D%A6%E5%8C%96/">控制流平坦化</a><a class="post-meta__tags" href="/tags/%E6%A8%A1%E6%8B%9F%E6%89%A7%E8%A1%8C/">模拟执行</a></div><div class="post_share"><div class="social-share" data-image="/images/misc/default_cover2.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img class="cover" src="/images/misc/default_cover4.png" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">Rust+OLLVM平坦化的邪恶组合</div></div></a></div><div class="next-post pull-right"><a href="/2024/07/04/Rust%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="Rust学习笔记"><img class="cover" src="/images/misc/default_cover3.png" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Rust学习笔记</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img class="cover" src="/images/misc/default_cover4.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-05</div><div class="title">Rust+OLLVM平坦化的邪恶组合</div></div></a></div></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/images/misc/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">JANlittle</div><div class="author-info__description">JANlittle的随笔记</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#R1mao%F0%9F%91%B4%E7%9A%84%E7%AE%97%E6%B3%95%E5%B9%B2%E4%BA%86%E5%95%A5%EF%BC%9F"><span class="toc-number">2.</span> <span class="toc-text">R1mao👴的算法干了啥？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%A6%82%E4%BD%95%E5%AF%B9%E6%8A%97%EF%BC%9F"><span class="toc-number">3.</span> <span class="toc-text">如何对抗？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%88%E6%9E%9C"><span class="toc-number">4.</span> <span class="toc-text">效果</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【博文笔记】Restructuring the Binary Ninja Decompiler"/></a><div class="content"><a class="title" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler">【博文笔记】Restructuring the Binary Ninja Decompiler</a><time datetime="2024-07-06T14:07:33.000Z" title="发表于 2024-07-06 22:07:33">2024-07-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img src="/images/misc/default_cover4.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust+OLLVM平坦化的邪恶组合"/></a><div class="content"><a class="title" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合">Rust+OLLVM平坦化的邪恶组合</a><time datetime="2024-07-05T15:05:58.000Z" title="发表于 2024-07-05 23:05:58">2024-07-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/" title="使用qiling击败Pluto-Obfuscator的增强版平坦化"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="使用qiling击败Pluto-Obfuscator的增强版平坦化"/></a><div class="content"><a class="title" href="/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/" title="使用qiling击败Pluto-Obfuscator的增强版平坦化">使用qiling击败Pluto-Obfuscator的增强版平坦化</a><time datetime="2024-07-04T16:50:14.000Z" title="发表于 2024-07-05 00:50:14">2024-07-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/04/Rust%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="Rust学习笔记"><img src="/images/misc/default_cover3.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust学习笔记"/></a><div class="content"><a class="title" href="/2024/07/04/Rust%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="Rust学习笔记">Rust学习笔记</a><time datetime="2024-07-03T16:30:38.000Z" title="发表于 2024-07-04 00:30:38">2024-07-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/03/hello-world/" title="hexo简易使用"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="hexo简易使用"/></a><div class="content"><a class="title" href="/2024/07/03/hello-world/" title="hexo简易使用">hexo简易使用</a><time datetime="2024-07-03T02:48:27.297Z" title="发表于 2024-07-03 10:48:27">2024-07-03</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2024 By JANlittle</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.13.0"></script><script src="/js/main.js?v=4.13.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"><script>(() => {
+  const initValine = () => {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, null))
+  }
+
+  const loadValine = async () => {
+    if (typeof Valine === 'function') initValine()
+    else {
+      await getScript('https://cdn.jsdelivr.net/npm/valine@1.5.1/dist/Valine.min.js')
+      initValine()
+    }
+  }
+
+  if ('Valine' === 'Valine' || !false) {
+    if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+    else setTimeout(loadValine, 0)
+  } else {
+    window.loadOtherComment = loadValine
+  }
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

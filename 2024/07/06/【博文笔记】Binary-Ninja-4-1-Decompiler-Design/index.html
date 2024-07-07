@@ -1,0 +1,250 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>【博文笔记】Restructuring the Binary Ninja Decompiler | JANlittle's Blog</title><meta name="author" content="JANlittle"><meta name="copyright" content="JANlittle"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="原博客文章链接：https:&#x2F;&#x2F;binary.ninja&#x2F;2024&#x2F;06&#x2F;19&#x2F;restructuring-the-decompiler.html 概述 Binary Ninja在4.1版本重构了反编译器，主要集中在其控制流结构化的策略上。这篇博文简单介绍了设计变化，同时这也是一篇挺好的介绍反编译器的主流控制流结构化策略的文章，值得记录一下。 所谓控制流结构化，就是识别控制流图模式，并将其转化&#x2F;折">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【博文笔记】Restructuring the Binary Ninja Decompiler">
+<meta property="og:url" content="https://janlittle.github.io/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/index.html">
+<meta property="og:site_name" content="JANlittle&#39;s Blog">
+<meta property="og:description" content="原博客文章链接：https:&#x2F;&#x2F;binary.ninja&#x2F;2024&#x2F;06&#x2F;19&#x2F;restructuring-the-decompiler.html 概述 Binary Ninja在4.1版本重构了反编译器，主要集中在其控制流结构化的策略上。这篇博文简单介绍了设计变化，同时这也是一篇挺好的介绍反编译器的主流控制流结构化策略的文章，值得记录一下。 所谓控制流结构化，就是识别控制流图模式，并将其转化&#x2F;折">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://janlittle.github.io/images/misc/default_cover2.png">
+<meta property="article:published_time" content="2024-07-06T14:07:33.000Z">
+<meta property="article:modified_time" content="2024-07-07T09:23:44.100Z">
+<meta property="article:author" content="JANlittle">
+<meta property="article:tag" content="Binary Ninja">
+<meta property="article:tag" content="CFG structuring">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://janlittle.github.io/images/misc/default_cover2.png"><link rel="shortcut icon" href="/images/misc/avatar.jpg"><link rel="canonical" href="https://janlittle.github.io/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.13.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":230},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '【博文笔记】Restructuring the Binary Ninja Decompiler',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-07-07 17:23:44'
+}</script><script>(win=>{
+      win.saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+    
+      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        script.onerror = reject
+        script.onload = script.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          script.onload = script.onreadystatechange = null
+          resolve()
+        }
+
+        Object.keys(attr).forEach(key => {
+          script.setAttribute(key, attr[key])
+        })
+
+        document.head.appendChild(script)
+      })
+    
+      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onerror = reject
+        link.onload = link.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          link.onload = link.onreadystatechange = null
+          resolve()
+        }
+        document.head.appendChild(link)
+      })
+    
+      win.activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })(window)</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/images/misc/avatar.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><hr class="custom-hr"/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/images/misc/default_cover2.png')"><nav id="nav"><span id="blog-info"><a href="/" title="JANlittle's Blog"><span class="site-name">JANlittle's Blog</span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">【博文笔记】Restructuring the Binary Ninja Decompiler</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2024-07-06T14:07:33.000Z" title="发表于 2024-07-06 22:07:33">2024-07-06</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2024-07-07T09:23:44.100Z" title="更新于 2024-07-07 17:23:44">2024-07-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Decompiler/">Decompiler</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="【博文笔记】Restructuring the Binary Ninja Decompiler"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><p>原博客文章链接：<a target="_blank" rel="noopener" href="https://binary.ninja/2024/06/19/restructuring-the-decompiler.html">https://binary.ninja/2024/06/19/restructuring-the-decompiler.html</a></p>
+<h2 id="概述">概述</h2>
+<p>Binary Ninja在4.1版本重构了反编译器，主要集中在其控制流结构化的策略上。这篇博文简单介绍了设计变化，同时这也是一篇挺好的介绍反编译器的主流控制流结构化策略的文章，值得记录一下。</p>
+<p><strong>所谓控制流结构化，就是识别控制流图模式，并将其转化/折叠为高级表示，例如C语言中的<code>if...else...</code>语句。</strong></p>
+<p>一般来说，在没有优化的情况下识别经典的C语言控制流语句生成的控制流图是非常容易的。但是在编译优化的影响下，函数控制流图的节点和边会被添加/删除/合并等，导致无法与经典控制流图模式相匹配。反编译器在面对控制流结构化时，最主要的挑战就是<strong>当控制流子图无法与现有模式匹配时，怎么做才能最大程度提高反编译结果的可读性和准确性？</strong></p>
+<h2 id="主流的几个策略">主流的几个策略</h2>
+<h3 id="遇事不决添加goto">遇事不决添加<code>goto</code></h3>
+<p>这个策略算是所有反编译器都会采用的手段，主打一个无脑。**当控制流图无法与已知模式匹配时，反编译器会为节点添加<code>goto</code>语句，并删除其出边来简化图结构，从而与已知模式相匹配。**当然，编译优化会生成大量无规则的控制流图，如果不与经典控制流图模式相匹配的话，那就会产生可怕的<code>goto</code>地狱了！所以，<strong>主要采用这种策略的反编译器往往会预先保存大量的新模式，而不局限于几个经典的图模式，来简化反编译结果。</strong></p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240706231941639.png" alt="image-20240706231941639" />
+<p>**这种方法的优点是灵活。开发人员可以根据需要添加任意数量的规则，以涵盖最新编译器中发现的新的或不常见的模式。缺点是需要维护大量这些规则才能获得良好的反编译结果。**几十年来，使用这些技术的产品一直在迭代其控制流解析规则。</p>
+<p>看到图里最后的结果是不是有种熟悉的感觉？没错，无论从最后生成的结果来看，还是从其诞生的年代来看，IDA的控制流结构化策略很明显就是这种简单粗暴、力大砖飞的设计。一直以来，hex-ray收集的这些图模式都是他们的护城河。</p>
+<h3 id="添加-复制虚拟节点">添加/复制虚拟节点</h3>
+<p>第一种方法需要不断添加新模式，以适应不断迭代的编译优化产生的新控制流图模式。有没有一些更简单的方法可以不那么经常维护，也可以获得高可读性和准确性的匹配结果？</p>
+<p>论文《<a target="_blank" rel="noopener" href="https://net.cs.uni-bonn.de/fileadmin/ag/martini/Staff/yakdan/dream_ndss2015.pdf">No More Gotos</a>》描述了一种方法：探索到达每个节点所需要的条件，生成条件图，再根据条件图来生成高级代码。这种方案最终产生的结果会没有goto语句，取而代之的是它会大量复制条件语句，来填补因编译优化而缺失的边。Binary Ninja在旧版本就使用这种方案。</p>
+<p>除此之外，论文《<a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3320269.3384766">A Comb for Decompiled C Code</a>》（也就是最初版本的revng反编译器）描述了另外一种方法：编译器优化经常删除重复代码，并添加更多的边来减小函数尺寸，那么可以将入度大于一的节点进行复制，从而消除这种优化，使新的控制流图能够与已知模式匹配。</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240706235652269.png" alt="image-20240706235652269" />
+<h2 id="Binary-Ninja此前的策略">Binary Ninja此前的策略</h2>
+<p>如前面所述，Binary Ninja此前主要使用论文《<a target="_blank" rel="noopener" href="https://net.cs.uni-bonn.de/fileadmin/ag/martini/Staff/yakdan/dream_ndss2015.pdf">No More Gotos</a>》描述的方法。<strong>当一个代码区域无法简单地解析为一组简单的 <code>if</code> 条件时，Binary Ninja 将获取组成该区域的节点并计算到达每个节点所需的条件，以保持程序顺序的方式遍历节点。一旦构造了条件图，就对其应用规则以简化图。这包括合并常见条件、检测 <code>if/else</code> 结构以及解析 <code>switch</code> 语句。一旦不再可以应用优化，Binary Ninja 就会将条件图转换为高级 IL，并用包含该高级 IL 的单个节点替换该图的整个区域。</strong></p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707001549153.png" alt="image-20240707001549153" />
+<p>这种方法的优点在于<strong>当编译器优化主要在于删除重复的到达条件</strong>时，可以很大程度上避免使用 <code>goto</code> 语句来解析优化图，从而生成更自然的代码。作为对比，以下是使用更传统方法的其他主要反编译器将为上图的示例构造生成的内容：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!A) &#123;</span><br><span class="line">    C</span><br><span class="line">    <span class="keyword">goto</span> label;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (B) &#123;</span><br><span class="line">    D</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">label:</span><br><span class="line">    E</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>但这种方法也有很大的缺点：不仅会生成大量嵌套的<code>if/else</code>，并且当遇到编译器删除重复代码而不是条件的代码时，或者当原作者使用 <code>goto</code> 语句手动组合两个或多个路径时，条件图解析器可能无法生成可读条件。</p>
+<p>例如这个示例，switch 语句有一条额外的边从其他地方进入构成默认情况的代码块：</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707002754878.png" alt="image-20240707002754878" />
+<p>在默认情况下生成 <code>H</code> 的条件时，条件图会生成一个大条件：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (x == <span class="number">4</span> || (x &lt;= <span class="number">0</span> &amp;&amp; y != <span class="number">0</span> &amp;&amp; y != <span class="number">1</span> &amp;&amp; y != <span class="number">2</span> &amp;&amp; y != <span class="number">3</span> &amp;&amp; y != <span class="number">4</span> &amp;&amp; y != <span class="number">5</span> &amp;&amp; y != <span class="number">6</span>))</span><br></pre></td></tr></table></figure>
+<p>如果 switch 语句包含在另一个 <code>if</code> 语句中，则条件会复合并产生极难读取的条件。经过优化的大型复杂软件通常会创建复杂的控制流图，这些控制流图产生的条件比此处显示的条件要差几个数量级。</p>
+<p>虽然Binary Ninja会在生成的条件过于复杂时添加goto语句来规避，但引入goto语句又会导致更多的问题，例如条件图解析进一步出现错误等，所以单纯使用这种方法已经不足以进一步提高反编译结果的可读性和准确性。</p>
+<h2 id="修改后的策略">修改后的策略</h2>
+<p>可以很容易地发现在解析成条件图后可以简单地重新将其组合成一个新的控制流图。这意味着我们可以直接在控制流图本身应用条件图算法，甚至可以与其它控制流结构化算法相结合进行使用！</p>
+<p>新的控制流结构化策略可以看作是一个框架，在这个框架里，我们可以对控制流图应用多种变化来进行简化，而不单单只是使用条件图算法。</p>
+<p>它的主要思路：*<em>图被分成具有<u><em>单个入边和单个出边</em></u>的区域，并且构成这些区域的图被单独解析。首先解析最里面的区域，使图形解析尽可能简单。循环的解析方式与之前相同，即循环体被提取到要解析的子图中。新算法没有构建条件图，而是首先创建一个包含区域内节点的子图。*<u>解析区域的最终目标是制作一张图，其中不存在入度大于一的节点。每个节点入度至多为一的图很容易解析为已知的控制流结构。</u><em>当节点具有多个入边时，有一组可应用于图的转换原语以减少传入边的数量。Binary Ninja应用转换直到达到目标，然后为结果图生成结构化的高级 IL。然后该区域被包含 IL 的单个代码替换。</em></em></p>
+<p>一起看看Binary Ninja准备了哪些转换原语吧。</p>
+<h3 id="和-转换"><code>&amp;&amp;</code> 和 <code>||</code> 转换</h3>
+<p>最简单的转换采用嵌套条件并将它们转换为单个条件。</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707005235229.png" alt="image-20240707005235229" style="zoom: 50%;" />
+<h3 id="条件复制">条件复制</h3>
+<p>这个就是条件图算法所做的事，也是Binary Ninja旧算法。执行这个转换后，仍然有可能出现一个节点具有多个入边，这时候就需要下一个转换来进一步进行解析。</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707005640753.png" alt="image-20240707005640753" style="zoom:50%;" />
+<h3 id="子区域解析">子区域解析</h3>
+<p>在应用变换来简化图之后，最终可能会得到具有单个入边和单个出边的图的新区域。这些区域是可独立解析的。如果这些子区域之一出现在图中，则可以将其提取到一个新图中并使用相同的算法对其进行解析。结果是一个具有结构化 IL 的节点，可以用单个节点替换整个区域，然后该过程继续使用简化图。</p>
+<p>可以明显注意到，这个解析原语可以弥补原条件图算法的一个缺点，即过度嵌套的<code>if/else</code>语句。这个解析原语会消除大量<code>else</code>语句的使用。</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707005838007.png" alt="image-20240707005838007" style="zoom: 50%;" />
+<h3 id="代码节点复制">代码节点复制</h3>
+<p>这个方法就是前面提到的论文《<a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3320269.3384766">A Comb for Decompiled C Code</a>》指示的方法，不过多赘述。</p>
+<h3 id="跳转表转换">跳转表转换</h3>
+<p>由于编译器生成跳转表的方式， <code>switch</code> 语句几乎总是前面有一个 <code>if</code> 语句，以确保永远不会越界访问跳转表。此 <code>if</code> 语句仍然显示在控制流图中，但它通常会在默认情况下产生额外的边，如下所示：</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707111520113.png" alt="image-20240707111520113" />
+<p>此转换查找带有“无法访问的默认值”标志的 <code>switch</code> 语句，并检查周围的条件。如果存在一个节点，其中条件中的边覆盖了除 <code>switch</code> 语句中的其他边之外的所有可能情况，它会重写控制流图以将该节点转换为 <code>default</code> 情况，并且删除条件。</p>
+<h3 id="合并相邻代码块">合并相邻代码块</h3>
+<p>这个很直观了.jpg</p>
+<img src="\images\【博文笔记】Binary-Ninja-4-1-Decompiler-Design\image-20240707111658479.png" alt="image-20240707111658479" style="zoom: 50%;" />
+<h3 id="goto语句插入"><code>goto</code>语句插入</h3>
+<p>当其它方案均不适合时（例如“条件复制”可能会导致条件图解析复杂度爆炸等），就会使用最后的方式：插入goto语句以删除边。就如前面介绍的那样。</p>
+<h3 id="总览">总览</h3>
+<p>可以看到，这样设计框架的好处是可以混合多种图模式处理，但随之而来的挑战就是**在什么时候应用哪些策略及其顺序是效果最好的？**这个问题似乎没有标准答案，只能通过不断添加的启发式规则来尽可能贴近了。</p>
+<h2 id="测试与效果">测试与效果</h2>
+<p>Vector35的人为新编译器设计实现了一个新的测试生成器框架，用以生成各种奇怪的控制流图来测试新编译器的控制流结构化效果。不过他们好像没有开源，真遗憾，不然还能<s>抄一抄</s>借鉴一下。</p>
+<p>最后贴个转换效果对比。</p>
+<p>Binary Ninja 4.0的输出：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (allocated == <span class="number">0xf</span>)</span><br><span class="line">    <span class="built_in">puts</span>(str: <span class="string">&quot;Nothing more!&quot;</span>)</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    allocated += <span class="number">1</span></span><br><span class="line">    <span class="built_in">printf</span>(format: <span class="string">&quot;Choose an index: &quot;</span>)</span><br><span class="line">    <span class="type">int64_t</span> index</span><br><span class="line">    __isoc99_scanf(format: <span class="string">&quot;%lu&quot;</span>, &amp;index)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (weapons[index].detail_size != <span class="number">0</span> || weapons[index].details != <span class="number">0</span> || index u&gt; <span class="number">0xe</span>)</span><br><span class="line">        <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Invalid!&quot;</span>)</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        <span class="built_in">printf</span>(format: <span class="string">&quot;\nHow much space do you need for it: &quot;</span>)</span><br><span class="line">        <span class="type">uint64_t</span> n</span><br><span class="line">        __isoc99_scanf(format: <span class="string">&quot;%lu&quot;</span>, &amp;n)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (n u&lt;= <span class="number">0x1f</span> || n u&gt; <span class="number">0x38</span>)</span><br><span class="line">            <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Your inventory cannot provide this type of space!&quot;</span>)</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            weapons[index].detail_size = n</span><br><span class="line">            weapons[index].details = <span class="built_in">calloc</span>(n, elem_size: <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (weapons[index].details == <span class="number">0</span>)</span><br><span class="line">                <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Something didn&#x27;t work out...&quot;</span>)</span><br><span class="line">                <span class="built_in">exit</span>(status: <span class="number">0xffffffff</span>)</span><br><span class="line">                <span class="keyword">noreturn</span></span><br><span class="line"></span><br><span class="line">            <span class="built_in">puts</span>(str: <span class="string">&quot;Input your weapon&#x27;s details: &quot;</span>)</span><br><span class="line">            read(fd: <span class="number">0</span>, buf: weapons[index].details, nbytes: n + <span class="number">1</span>)</span><br></pre></td></tr></table></figure>
+<p>Binary Ninja 4.1的输出：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (allocated == <span class="number">0xf</span>)</span><br><span class="line">    <span class="built_in">puts</span>(str: <span class="string">&quot;Nothing more!&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">allocated += <span class="number">1</span></span><br><span class="line"><span class="built_in">printf</span>(format: <span class="string">&quot;Choose an index: &quot;</span>)</span><br><span class="line"><span class="type">int64_t</span> index</span><br><span class="line">__isoc99_scanf(format: <span class="string">&quot;%lu&quot;</span>, &amp;index)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (weapons[index].detail_size != <span class="number">0</span> || weapons[index].details != <span class="number">0</span> || index u&gt; <span class="number">0xe</span>)</span><br><span class="line">    <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Invalid!&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">printf</span>(format: <span class="string">&quot;\nHow much space do you need for it: &quot;</span>)</span><br><span class="line"><span class="type">uint64_t</span> n</span><br><span class="line">__isoc99_scanf(format: <span class="string">&quot;%lu&quot;</span>, &amp;n)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (n u&lt;= <span class="number">0x1f</span> || n u&gt; <span class="number">0x38</span>)</span><br><span class="line">    <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Your inventory cannot provide this type of space!&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">weapons[index].detail_size = n</span><br><span class="line">weapons[index].details = <span class="built_in">calloc</span>(n, elem_size: <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (weapons[index].details == <span class="number">0</span>)</span><br><span class="line">    <span class="built_in">puts</span>(str: <span class="string">&quot;[-] Something didn&#x27;t work out...&quot;</span>)</span><br><span class="line">    <span class="built_in">exit</span>(status: <span class="number">0xffffffff</span>)</span><br><span class="line">    <span class="keyword">noreturn</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">puts</span>(str: <span class="string">&quot;Input your weapon&#x27;s details: &quot;</span>)</span><br><span class="line">read(fd: <span class="number">0</span>, buf: weapons[index].details, nbytes: n + <span class="number">1</span>)</span><br></pre></td></tr></table></figure>
+<h2 id="补充链接">补充链接</h2>
+<p>对反编译感兴趣的可以看看这个，虽然目前内容好像还很少：<a target="_blank" rel="noopener" href="https://decompilation.wiki/">https://decompilation.wiki/</a></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://JANlittle.github.io">JANlittle</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://janlittle.github.io/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/">https://janlittle.github.io/2024/07/06/【博文笔记】Binary-Ninja-4-1-Decompiler-Design/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://JANlittle.github.io" target="_blank">JANlittle's Blog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Binary-Ninja/">Binary Ninja</a><a class="post-meta__tags" href="/tags/CFG-structuring/">CFG structuring</a></div><div class="post_share"><div class="social-share" data-image="/images/misc/default_cover2.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img class="cover" src="/images/misc/default_cover4.png" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Rust+OLLVM平坦化的邪恶组合</div></div></a></div></nav><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/images/misc/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">JANlittle</div><div class="author-info__description">JANlittle的随笔记</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BB%E6%B5%81%E7%9A%84%E5%87%A0%E4%B8%AA%E7%AD%96%E7%95%A5"><span class="toc-number">2.</span> <span class="toc-text">主流的几个策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%81%87%E4%BA%8B%E4%B8%8D%E5%86%B3%E6%B7%BB%E5%8A%A0goto"><span class="toc-number">2.1.</span> <span class="toc-text">遇事不决添加goto</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B7%BB%E5%8A%A0-%E5%A4%8D%E5%88%B6%E8%99%9A%E6%8B%9F%E8%8A%82%E7%82%B9"><span class="toc-number">2.2.</span> <span class="toc-text">添加&#x2F;复制虚拟节点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Binary-Ninja%E6%AD%A4%E5%89%8D%E7%9A%84%E7%AD%96%E7%95%A5"><span class="toc-number">3.</span> <span class="toc-text">Binary Ninja此前的策略</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E5%90%8E%E7%9A%84%E7%AD%96%E7%95%A5"><span class="toc-number">4.</span> <span class="toc-text">修改后的策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%92%8C-%E8%BD%AC%E6%8D%A2"><span class="toc-number">4.1.</span> <span class="toc-text">&amp;&amp; 和 || 转换</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9D%A1%E4%BB%B6%E5%A4%8D%E5%88%B6"><span class="toc-number">4.2.</span> <span class="toc-text">条件复制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AD%90%E5%8C%BA%E5%9F%9F%E8%A7%A3%E6%9E%90"><span class="toc-number">4.3.</span> <span class="toc-text">子区域解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E8%8A%82%E7%82%B9%E5%A4%8D%E5%88%B6"><span class="toc-number">4.4.</span> <span class="toc-text">代码节点复制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B7%B3%E8%BD%AC%E8%A1%A8%E8%BD%AC%E6%8D%A2"><span class="toc-number">4.5.</span> <span class="toc-text">跳转表转换</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%90%88%E5%B9%B6%E7%9B%B8%E9%82%BB%E4%BB%A3%E7%A0%81%E5%9D%97"><span class="toc-number">4.6.</span> <span class="toc-text">合并相邻代码块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#goto%E8%AF%AD%E5%8F%A5%E6%8F%92%E5%85%A5"><span class="toc-number">4.7.</span> <span class="toc-text">goto语句插入</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E8%A7%88"><span class="toc-number">4.8.</span> <span class="toc-text">总览</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%B5%8B%E8%AF%95%E4%B8%8E%E6%95%88%E6%9E%9C"><span class="toc-number">5.</span> <span class="toc-text">测试与效果</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%A1%A5%E5%85%85%E9%93%BE%E6%8E%A5"><span class="toc-number">6.</span> <span class="toc-text">补充链接</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【博文笔记】Restructuring the Binary Ninja Decompiler"/></a><div class="content"><a class="title" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler">【博文笔记】Restructuring the Binary Ninja Decompiler</a><time datetime="2024-07-06T14:07:33.000Z" title="发表于 2024-07-06 22:07:33">2024-07-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img src="/images/misc/default_cover4.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust+OLLVM平坦化的邪恶组合"/></a><div class="content"><a class="title" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合">Rust+OLLVM平坦化的邪恶组合</a><time datetime="2024-07-05T15:05:58.000Z" title="发表于 2024-07-05 23:05:58">2024-07-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/" title="使用qiling击败Pluto-Obfuscator的增强版平坦化"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="使用qiling击败Pluto-Obfuscator的增强版平坦化"/></a><div class="content"><a class="title" href="/2024/07/05/%E4%BD%BF%E7%94%A8qiling%E5%87%BB%E8%B4%A5Pluto-Obfuscator%E7%9A%84%E5%A2%9E%E5%BC%BA%E7%89%88%E5%B9%B3%E5%9D%A6%E5%8C%96/" title="使用qiling击败Pluto-Obfuscator的增强版平坦化">使用qiling击败Pluto-Obfuscator的增强版平坦化</a><time datetime="2024-07-04T16:50:14.000Z" title="发表于 2024-07-05 00:50:14">2024-07-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/04/Rust%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="Rust学习笔记"><img src="/images/misc/default_cover3.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust学习笔记"/></a><div class="content"><a class="title" href="/2024/07/04/Rust%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="Rust学习笔记">Rust学习笔记</a><time datetime="2024-07-03T16:30:38.000Z" title="发表于 2024-07-04 00:30:38">2024-07-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/03/hello-world/" title="hexo简易使用"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="hexo简易使用"/></a><div class="content"><a class="title" href="/2024/07/03/hello-world/" title="hexo简易使用">hexo简易使用</a><time datetime="2024-07-03T02:48:27.297Z" title="发表于 2024-07-03 10:48:27">2024-07-03</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2024 By JANlittle</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.13.0"></script><script src="/js/main.js?v=4.13.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"><script>(() => {
+  const initValine = () => {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, null))
+  }
+
+  const loadValine = async () => {
+    if (typeof Valine === 'function') initValine()
+    else {
+      await getScript('https://cdn.jsdelivr.net/npm/valine@1.5.1/dist/Valine.min.js')
+      initValine()
+    }
+  }
+
+  if ('Valine' === 'Valine' || !false) {
+    if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+    else setTimeout(loadValine, 0)
+  } else {
+    window.loadOtherComment = loadValine
+  }
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
