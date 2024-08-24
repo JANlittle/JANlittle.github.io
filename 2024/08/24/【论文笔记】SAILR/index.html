@@ -1,0 +1,343 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation | JANlittle's Blog</title><meta name="author" content="JANlittle"><meta name="copyright" content="JANlittle"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="概要 这是目前已知的第一篇探究编译优化是如何具体影响反编译器控制流结构化并试图逆转这种优化的论文。 ASU（shellphish）的研究团队认为，反编译器的结果质量衡量最重要的不是降低复杂度或者消除goto，是尽可能接近原始源代码。而**产生不可控制流结构化的控制流图的根本原因，就是编译器优化以及反编译器和编译器之间的知识差距。**为此，反编译器必须是“编译器感知”的，能够知道当前没能正确匹配的控">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation">
+<meta property="og:url" content="https://janlittle.github.io/2024/08/24/%E3%80%90%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91SAILR/index.html">
+<meta property="og:site_name" content="JANlittle&#39;s Blog">
+<meta property="og:description" content="概要 这是目前已知的第一篇探究编译优化是如何具体影响反编译器控制流结构化并试图逆转这种优化的论文。 ASU（shellphish）的研究团队认为，反编译器的结果质量衡量最重要的不是降低复杂度或者消除goto，是尽可能接近原始源代码。而**产生不可控制流结构化的控制流图的根本原因，就是编译器优化以及反编译器和编译器之间的知识差距。**为此，反编译器必须是“编译器感知”的，能够知道当前没能正确匹配的控">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://janlittle.github.io/images/misc/default_cover5.png">
+<meta property="article:published_time" content="2024-08-24T09:41:56.000Z">
+<meta property="article:modified_time" content="2024-08-24T09:48:42.286Z">
+<meta property="article:author" content="JANlittle">
+<meta property="article:tag" content="CFG structuring">
+<meta property="article:tag" content="angr">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://janlittle.github.io/images/misc/default_cover5.png"><link rel="shortcut icon" href="/images/misc/avatar.jpg"><link rel="canonical" href="https://janlittle.github.io/2024/08/24/%E3%80%90%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91SAILR/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.13.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":230},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-08-24 17:48:42'
+}</script><script>(win=>{
+      win.saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+    
+      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        script.onerror = reject
+        script.onload = script.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          script.onload = script.onreadystatechange = null
+          resolve()
+        }
+
+        Object.keys(attr).forEach(key => {
+          script.setAttribute(key, attr[key])
+        })
+
+        document.head.appendChild(script)
+      })
+    
+      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onerror = reject
+        link.onload = link.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          link.onload = link.onreadystatechange = null
+          resolve()
+        }
+        document.head.appendChild(link)
+      })
+    
+      win.activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })(window)</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/images/misc/avatar.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">10</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">4</div></a></div><hr class="custom-hr"/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/images/misc/default_cover5.png')"><nav id="nav"><span id="blog-info"><a href="/" title="JANlittle's Blog"><span class="site-name">JANlittle's Blog</span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></div></div><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2024-08-24T09:41:56.000Z" title="发表于 2024-08-24 17:41:56">2024-08-24</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2024-08-24T09:48:42.286Z" title="更新于 2024-08-24 17:48:42">2024-08-24</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Decompiler/">Decompiler</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="概要">概要</h2>
+<p>这是目前已知的第一篇探究编译优化是如何具体影响反编译器控制流结构化并试图逆转这种优化的论文。</p>
+<p>ASU（shellphish）的研究团队认为，<strong>反编译器的结果质量衡量最重要的不是降低复杂度或者消除goto，是尽可能接近原始源代码</strong>。而**产生不可控制流结构化的控制流图的根本原因，就是编译器优化以及反编译器和编译器之间的知识差距。**为此，<strong>反编译器必须是“编译器感知”的，能够知道当前没能正确匹配的控制流子图是由哪些编译优化引起的，又该如何“反优化”。</strong></p>
+<p>为了验证这一目标，作者探究了具体的编译优化选项会导致怎样的异常控制流图，同时在<a target="_blank" rel="noopener" href="https://github.com/angr/angr/tree/master/angr/analyses/decompiler">angr</a>的反编译器上开发了第一个“编译器感知”的控制流结构化算法：SAILR。并且经过测试，发现SAILR的CFGED等指标可以与IDA Pro相接近，并且领先于先前的研究成果，如<a target="_blank" rel="noopener" href="https://net.cs.uni-bonn.de/fileadmin/ag/martini/Staff/yakdan/dream_ndss2015.pdf">DREAM</a>、<a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3320269.3384766">revng</a>等。</p>
+<h2 id="介绍">介绍</h2>
+<p>在恢复C控制流结构时，原始的控制流结构会被编译器优化所扭曲和破坏。这在反编译器的输出上表现为虚假的goto语句。</p>
+<p>文中认为，产生不可结构化代码的根本原因是：编译器优化以及反编译器与编译器的知识差距。</p>
+<p>反编译器常常使用图模式匹配来结构化控制流子图，但由于编译器优化导致不可能穷举所有可能的控制流模式，所以反编译器采用删除边并添加<code>goto</code>创建新子图，来与已知模式匹配。</p>
+<p>SAILR对GCC不同的编译优化选项进行测试，得出了几类关键的改变控制流子图的类型，并将其分为三大类，针对每一类进行不同的优化。</p>
+<p>测试上，采用GED和CFGED来作为指标衡量。</p>
+<h2 id="前人工作与动机">前人工作与动机</h2>
+<p>文章把先前的控制流结构化算法分为两类：<strong>图模式匹配</strong>和<strong>无goto算法</strong>。具体参见：<a href="https://janlittle.github.io/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/">https://janlittle.github.io/2024/07/06/【博文笔记】Binary-Ninja-4-1-Decompiler-Design/</a></p>
+<p>第一类算法需要不断添加新的图模式来保持反编译效果，但新的编译优化产生的图模式是不可能穷尽的；第二类算法看起来很好，但论文作者认为：<strong>如果假设在一个流行的和积极维护的代码库(比如GNU包中的代码)中的C源代码是程序逻辑的高质量实现，那么，当反编译由高质量代码编译的二进制文件时，结构上接近源代码的反编译是高质量的。<strong>根据这个假设，作者手动评估了DREAM和Phoenix两个算法的结果，发现它们生成的伪代码在结构上与源代码差距较大，从假设出发，这样的反编译结果质量不高。究其原因，就是</strong>因为单纯的无goto算法无法还原编译器优化所带来的控制流改变。</strong></p>
+<h2 id="具体类型划分">具体类型划分</h2>
+<p>在没有任何优化和除了本身就在源代码中的goto之外，每一个C控制语句生成的控制流结构都可以用一个单入边、单出边的图来表示，其节点就是基本块。编译优化在不保留图模式的情况下拆分、合并或复制图上的节点。这些优化创建了新的图模式，使得结构化算法无法详尽地枚举优化可能生成的所有可能的图模式。</p>
+<p>为了找到反编译器缺失的图模式，作者采用以下方法：</p>
+<ol>
+<li>使用带优化编译（O2）的GCC编译器来编译测试文件，同时启用<code>save-temps</code>和<code>dump-tree-all</code>标志保存预处理和优化过程中生成的中间文件。</li>
+<li>然后反编译所有函数，并在反编译结果中记录goto的数量与位置。</li>
+<li>最后在中间文件中进行搜索，以确定哪个优化传递改变了函数以引起goto。这标识了优化传递的GCC源，并且这些传递带有关于所使用模式的信息的注释。</li>
+</ol>
+<p>作者不断禁用优化并重复上述方法，计算优化前后反编译中的所有goto，以衡量其影响，并将所有使goto消失的被禁用优化分组为一个优化算法或一组紧耦合算法。</p>
+<blockquote>
+<p>[!CAUTION]</p>
+<p>这个方法对于GCC O2优化集中的大多数优化都非常有效。但有些优化选项无法简单禁用，只能通过未记录的开发人员选项完全禁用。</p>
+</blockquote>
+<p>作者把导致goto出现的优化分为以下几类（tm也不配个图，每一类都是抽象解释，鬼知道长什么样啊）：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">类型</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">(ISD) Jump Threading (A)</td>
+<td>When one branch’s conditions superset a future branch’s conditions, the statements contained between the two may be duplicated into the first and end with a jump to avoid extra conditional instructions. Gotos appear between duplicated statements.</td>
+</tr>
+<tr>
+<td style="text-align:center">(ISC) Common Subexpression Elimination (B)</td>
+<td>The compiler finds common statements among multiple blocks and reduces them into one use of the expression and a series of jumps to that expression. Gotos occur between condensed statements.</td>
+</tr>
+<tr>
+<td style="text-align:center">(ISC) Switch Conversion ©</td>
+<td>The compiler replaces simple assignments on switch statements in cases with assignments from scalars. Gotos can occur between cases that share a common expression for assignment.</td>
+</tr>
+<tr>
+<td style="text-align:center">(ISC) Cross Jumping (D)</td>
+<td>Unifies equivalent code (e.g., repeated statements) across regions and replaces duplicates with a jump to the unification. A goto corresponds to the new jump.</td>
+</tr>
+<tr>
+<td style="text-align:center">(ISD) Software Thread Cache Reordering (E)</td>
+<td>The compiler estimates the likelihood of executing a set of paths and clusters those frequently executed together through code duplication.</td>
+</tr>
+<tr>
+<td style="text-align:center">(ISD) Loop Header Optimizations (F)</td>
+<td>The compiler moves branches that are always true or true only once to avoid executing a conditional instruction many times. The edge leaving the loop body (for the copied header) becomes a goto.</td>
+</tr>
+<tr>
+<td style="text-align:center">Builtin Inlining (G)</td>
+<td>The compiler replaces special built-in functions, e.g., <code>strcmp</code>, with optimized inlining and propagation. Gotos can occur when inlining happens inside a short-circuit Boolean expression.</td>
+</tr>
+<tr>
+<td style="text-align:center">Switch Lowering (H)</td>
+<td>A highly-coupled optimization that is non-disablable in GCC. The compiler optimizes switchstatements by breaking them into clusters and applying heuristics to avoid large jump tables. Gotos occur when the switch statement is fully transformed into a nested <code>if</code> statement.</td>
+</tr>
+<tr>
+<td style="text-align:center">Nonreturning Functions (I)</td>
+<td>Some functions, such as <code>exit</code> and <code>abort</code>, may not (always) return, and GCC uses this knowledge to transform the CFG. When the decompiler lacks knowledge of these functions’ ability to not return, it can cause successors to be incorrectly added during CFG recovery, causing goto edges to those successors.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Irreducible Statement Duplication (ISD)</strong> converts a statement into many statements that are semantically equivalent to the original.</p>
+<p><strong>Irreducible Statement Condensing (ISC)</strong> converts many statements into a condensed version with introduced graphedges.</p>
+</blockquote>
+<h2 id="如何解决？">如何解决？</h2>
+<h3 id="angr反编译流程">angr反编译流程</h3>
+<p>先lift到通用的VEX IR，再lift成更适合表示C伪代码的中间语言AIL：</p>
+<img src="\images\【论文笔记】SAILR\image-20240824174438874.png" alt="image-20240824174438874" style="zoom: 67%;" />
+<h3 id="angr控制流结构化流程">angr控制流结构化流程</h3>
+<p>angr不断对AIL CFG循环以下四个步骤，直到到达固定点：</p>
+<ol>
+<li><strong>Region identification.</strong> angr使用基于DREAM采用的算法来识别AIL CFG中所有单入边、单出边的区域。</li>
+<li><strong>Schema matching.</strong> angr将每个子图与已知图模式匹配，当无法匹配时，则删除边并使用goto进行替代以匹配已知图模式。匹配时会将其转化为C伪代码结构并替代子图，并迭代对父子图进行匹配。</li>
+<li><strong>Region simplification.</strong> 对已匹配的AIL CFG进行优化。</li>
+<li><strong>Deoptimization.</strong> 对已匹配的AIL CFG进行反优化，不停迭代运行后面的反优化策略，直到满足限制。这个过程是goto引导的，angr假设需要反优化的优化都会导致goto，所以只对goto所代表的边周围的块进行处理。在这个过程中，搜索目标区域将会花费大部分资源。</li>
+</ol>
+<h3 id="ISD优化的反优化">ISD优化的反优化</h3>
+<p>ISD优化主要是指编译器会自动计算每个语句的到达条件，在某些情况下，编译器会复制语句并将其放置在到达条件相同的块内来优化执行速度等。如下图，如果满足<code>first print</code>的条件，就相当于满足<code>third print</code>的条件，为了避免多次条件判断，编译器复制了<code>second print</code>的语句，并新增了直接到<code>third print</code>的跳转。</p>
+<img src="\images\【论文笔记】SAILR\image-20240824174521867.png" alt="image-20240824174521867" style="zoom:67%;" />
+<p>ISD反优化步骤：</p>
+<ol>
+<li>
+<p><strong>Finding duplicate statements.</strong> 也就是寻找重复语句。angr先遍历AIL CFG中两个语句的所有组合，寻找一组存在于同一区域且**“存储等效”** *（当两个语句的所有读写位置相同时，它们在存储上是相等的。对于一对调用语句，存储等价意味着所有参数共享相同的存储位置，并且函数地址相同。）*的候选语句对。再<strong>从候选语句对出发，使用BFS迭代展开对应子图，并使用KMP算法匹配语句</strong>。最后<strong>将每个候选图扩展到最大的图相似度为止，找到每个重复图的尾节点。</strong></p>
+<p>这些节点在每个图中必须共享相同的后继节点。至少其中一个图必须具有在结构化过程中识别出的连接到共同后继的跳转边。下图的左图是一个简单的目标示例。</p>
+</li>
+<li>
+<p><strong>Condensing duplicates.</strong> 也就是合并重复。<strong>合并的关键在于合并前后的候选子图的到达条件一致</strong>。这个步骤简单来说就是**将所有前向节点重定向到新合并的节点，将重复的节点合并为一个节点。因为合并节点可能代表着一个复杂的、有多起始节点的子图，所以这个过程尤其要注意前向节点到达合并节点的条件分配，以及合并节点连接到后向节点的条件分配。**下图的右图表示简单合并示例，同时作者给出了ISD反优化算法的伪代码：</p>
+</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">deoptimize_isd</span>(<span class="params">duplicate_graph_pair, graph</span>):</span><br><span class="line">    merged_graph = merge_pair_graphs(duplicate_graph_pair)</span><br><span class="line">    remove_pair_nodes_from_graph(graph_pair, graph)</span><br><span class="line">    graph = compose_graphs_of_many(graph, merged_graph)</span><br><span class="line">    <span class="keyword">for</span> head_node <span class="keyword">in</span> heads_of_graphs(merged_graph):</span><br><span class="line">    	point_old_predecessors_to_node(head_head)</span><br><span class="line">    <span class="keyword">for</span> leaf_node <span class="keyword">in</span> ends_of_graphs(merged_graph):</span><br><span class="line">        conditional_node = make_reaching_cond_node(leaf_node)</span><br><span class="line">        graph.add_edge(leaf_node, conditional_node)</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> new_conditional_nodes(graph):</span><br><span class="line">        original_leafs = leaf_nodes(duplicate_graph_pair)</span><br><span class="line">        <span class="keyword">for</span> leaf <span class="keyword">in</span> original_leafs:</span><br><span class="line">            graph.add_edge(</span><br><span class="line">                node,</span><br><span class="line">                original_edge_by_condition(leaf)</span><br><span class="line">            )</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> new_conditional_nodes(graph):</span><br><span class="line">    	simplify_and_merge_adjacent_conditionals(node)</span><br><span class="line">    <span class="keyword">return</span> graph</span><br></pre></td></tr></table></figure>
+<img src="\images\【论文笔记】SAILR\image-20240824174638174.png" alt="image-20240824174638174" style="zoom:67%;" />
+<h3 id="ISC优化的反优化">ISC优化的反优化</h3>
+<p>类似于ISD优化，编译器在计算每个语句的到达条件后，在某些情况下，会将完全相同的语句只保留其中部分，其余删除之后留下一个跳转。如下图，是Cross Jumping (D)优化的一个示例：</p>
+<img src="\images\【论文笔记】SAILR\image-20240824174705163.png" alt="image-20240824174705163" style="zoom:67%;" />
+<p>ISC反优化步骤：</p>
+<ol>
+<li><strong>Finding condensed statements.</strong>  也就是寻找合并的语句。**angr将任何通过goto连接到另一个语句的语句视为ISC去优化候选者。**由于ISC优化经常与其它优化相叠加，所以ISC去优化会在其它以goto为导向的反优化运行之后再运行。下图的左图是一个匹配的简单示例。</li>
+<li><strong>Reverting condensed statements.</strong> 即恢复合并的语句。**定位语句之后，目标节点作为复制的头节点，从头节点开始复制单后继节点链。**下图的右图是一个恢复示例。如果节点链中的最后一个节点不是退出节点，则此反优化可能不会删除goto。相反，angr会将图转化为一种更容易配合其它反优化的形式。这一点很重要，因为在编译过程中，ISC优化通常会叠加在其他触发goto的优化之上，类似于ISD优化。SAILR必须一个接一个地迭代地恢复这些优化。ISC反优化的伪代码如下：</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">deoptimize_isc</span>(<span class="params">target_node, graph</span>):</span><br><span class="line">    exit_regions = get_exit_regions(graph)</span><br><span class="line">    node_chain = []</span><br><span class="line">    next_node = graph.successors(target_node)[<span class="number">0</span>]</span><br><span class="line">    graph.remove_edge(target_node, next_node)</span><br><span class="line">    <span class="keyword">while</span> next_node <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">        node_chain.append(next_node)</span><br><span class="line">        successors = graph.successors(next_node)</span><br><span class="line">        <span class="keyword">if</span> <span class="built_in">len</span>(successors) &gt; <span class="number">1</span>:</span><br><span class="line">        	<span class="keyword">break</span></span><br><span class="line">        next_node = successors[<span class="number">0</span>]</span><br><span class="line">    last_node = target_node</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> node_chain</span><br><span class="line">        <span class="keyword">if</span> is_region_head(node, exit_regions):</span><br><span class="line">            new_nodes = copy_region_nodes(node)</span><br><span class="line">            graph.add_edges(last_node, new_nodes)</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            graph.add_edge(last_node, copy(node))</span><br><span class="line">            last_node = node</span><br><span class="line">    <span class="keyword">return</span> graph</span><br></pre></td></tr></table></figure>
+<img src="\images\【论文笔记】SAILR\image-20240824174721448.png" alt="image-20240824174721448" style="zoom:67%;" />
+<h3 id="杂项优化">杂项优化</h3>
+<p>主要讲了编译器对switch的一些特殊优化、永不返回函数、缺失的一些特殊图模式等的处理，不是重点，没什么好说的。</p>
+<h2 id="结果评估">结果评估</h2>
+<h3 id="参数选择">参数选择</h3>
+<p>前人的工作通常将控制流结构化的有效性与最终生成代码的复杂性联系起来，并使用<strong>goto数量、麦凯布圈复杂度（McCabe Cyclomatic Code Complexity，MCC）、代码行数（LoC）<strong>作为指标进行衡量，但</strong>这是有缺陷的</strong>。</p>
+<p>为了让最终结果能与源代码产生更强的关联性，作者使用**反编译代码与源代码之间的图编辑距离（Graph Edit Distance，GED）**作为指标来衡量效果，<strong>当GED越小，说明两者差距越小，反编译结果越接近源代码。</strong></p>
+<p>但计算GED是NP-hard问题，为了减少计算量，作者开发了适用于CFG比较的<a target="_blank" rel="noopener" href="https://github.com/mahaloz/cfgutils">CFGED算法</a>：核心思想是利用之前结构化过程中所划分出来的各个子图信息，计算对应的两个子图之间的GED（仍然过大就进行估算），最终GED是各子图的GED之和。</p>
+<h3 id="评估流程">评估流程</h3>
+<p>直接复制粘贴：</p>
+<blockquote>
+<p>[!IMPORTANT]</p>
+<p>在每个实验中，我们编译软件包中的所有 .c 文件，并使用编译器输出经过预处理的中间源文件。接下来，我们编译时添加调试符号，禁用内联，并保存目标文件。然后，我们记录每个目标文件的地址与行号的映射，然后剥离调试信息。该映射将用于与 CFGED 进行评估。每个目标文件都有一个相关的中间 (.i) 文件和地址映射。</p>
+<p>在编译后，我们使用每个反编译器对每个目标文件进行反编译，该目标文件是最终可执行文件的未链接版本，并使用 <a target="_blank" rel="noopener" href="https://dl.acm.org/doi/abs/10.1145/2508859.2516665">Joern</a> 解析输出。我们利用Joern从每个反编译器收集度量指标以及控制流图（CFG），以便进行可能无法重新编译的反编译工作。我们评估Hex-Rays 8.0（IDA Pro）、Ghidra 10.1和实现SAILR、Phoenix、DREAM以及rev.ng的Combing的ANGR DECOMPILER。每种结构化算法的评估基于<strong>Structuredness（结构化程度，以goto数量为指标）和Faithfulness（正确率，以CFGED为指标）</strong>。为了确保对所有结构化算法的公平评估，我们仅报告在所有反编译器上成功反编译且未在我们的测量流程中崩溃的函数的度量指标。</p>
+</blockquote>
+<p>评估的几个问题：</p>
+<ul>
+<li>在反编译过程中，SAILR 结构化算法对控制流图 (CFGs) 的恢复与最先进的结构算法相比如何？</li>
+<li>鉴于SAILR是基于GCC 9.5的研究结果进行指导的，那么它在较旧和较新版本的GCC上表现如何？</li>
+<li>鉴于SAILR是基于GCC 9.5的研究结果进行指导的，它在不同C编译器生成的二进制文件上的表现如何？</li>
+</ul>
+<p>评测结果接近IDA，但goto数比IDA少很多。</p>
+<h2 id="结论">结论</h2>
+<p>缺陷：</p>
+<ul>
+<li>还是存在goto语句。主要是因为(a) 某些函数调用未返回，但angr对此并不知情，导致CFG不正确；(b) 反编译器在多个候选边中选择了错误的边进行虚拟化，从而阻止SAILR在预期位置应用去优化技术；© SAILR对未受到编译器中的ISD优化影响的代码块进行了合并。后两者可以通过SAILR在选择虚拟化边和去优化代码部分时执行迭代搜索来解决。</li>
+<li>反编译结果达到最佳时仍可能产生高CFGED。可能需要修改CFGED算法，另外不同的结构选择差异也可能导致不同，可能需要使用统计技术，例如机器学习来进行加强。</li>
+<li>不同的架构、平台、和编译器。</li>
+<li>复合ISC和ISD优化并不总是导致goto语句。在少数情况下，复合ISC和ISD优化可能会生成与已知图形模式相匹配的子图。因此，不会产生不可结构化的代码区域。一个与图形模式匹配的反编译器将生成一个无goto的反编译结果，然而它在结构上并不与源代码匹配。从根本上讲，这种情况是由于合法C源代码与二进制代码之间的多对一映射所造成的。使用机器学习方法来预测二进制控制流图及其上下文中最合适的结构化结果是一种自然的解决方案。</li>
+<li>使用Hex-Rays研究Coreutils二进制文件中的goto。由于Hex-Rays有着更多的图形模式来匹配，所以会消除更多的goto导致无法识别所有goto源。使用一个简单的图形模式匹配反编译器可以帮助提高所有goto源的准确性。</li>
+</ul>
+<h2 id="rev-ng作者的回应">rev.ng作者的回应</h2>
+<p><a target="_blank" rel="noopener" href="https://pad.rev.ng/s/T3RdsvKNx#">https://pad.rev.ng/s/T3RdsvKNx#</a></p>
+<ul>
+<li>反编译器的输出应以可读性为主，不必与原始代码百分百接近。所以只要能提高可读性，适当的goto和重复都不是问题。</li>
+<li>针对编译器优化进行反优化是不实际的，一方面需要根据不同的编译器、架构、平台等进行特别地改动，另一方面编译器优化会进行多轮迭代并与其它优化相互作用，不能简单地“反转”。</li>
+<li>使用平均GED作为指标并不好，因为可能在小函数上表现出色，但在大函数上表现很差。同时，相同GED的函数可能反编译结果的可读性会相差甚远。</li>
+<li>给出了一个可能更有前途的指标：<a target="_blank" rel="noopener" href="https://www.sonarsource.com/docs/CognitiveComplexity.pdf">https://www.sonarsource.com/docs/CognitiveComplexity.pdf</a></li>
+</ul>
+<h2 id="参考">参考</h2>
+<ul>
+<li>[Phoenix] Native x86 decompilation using semantics-preserving structural analysis and iterative control-flow structuring.</li>
+<li>[<a target="_blank" rel="noopener" href="http://rev.ng">rev.ng</a>] A comb for decompiled C code.</li>
+<li>[DREAM] No more gotos: Decompilation using patternindependent control-flow structuring and semantic-preserving transformations.</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://JANlittle.github.io">JANlittle</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://janlittle.github.io/2024/08/24/%E3%80%90%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91SAILR/">https://janlittle.github.io/2024/08/24/【论文笔记】SAILR/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://JANlittle.github.io" target="_blank">JANlittle's Blog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/CFG-structuring/">CFG structuring</a><a class="post-meta__tags" href="/tags/angr/">angr</a></div><div class="post_share"><div class="social-share" data-image="/images/misc/default_cover5.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2024/07/26/angr-ctf%E7%AC%94%E8%AE%B0/" title="angr_ctf笔记"><img class="cover" src="/images/misc/default_cover7.png" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">angr_ctf笔记</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler"><img class="cover" src="/images/misc/default_cover2.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-06</div><div class="title">【博文笔记】Restructuring the Binary Ninja Decompiler</div></div></a></div><div><a href="/2024/07/26/angr-ctf%E7%AC%94%E8%AE%B0/" title="angr_ctf笔记"><img class="cover" src="/images/misc/default_cover7.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2024-07-26</div><div class="title">angr_ctf笔记</div></div></a></div></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/images/misc/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">JANlittle</div><div class="author-info__description">JANlittle的随笔记</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">10</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/JANlittle"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A6%82%E8%A6%81"><span class="toc-number">1.</span> <span class="toc-text">概要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8B%E7%BB%8D"><span class="toc-number">2.</span> <span class="toc-text">介绍</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E4%BA%BA%E5%B7%A5%E4%BD%9C%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-number">3.</span> <span class="toc-text">前人工作与动机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%B7%E4%BD%93%E7%B1%BB%E5%9E%8B%E5%88%92%E5%88%86"><span class="toc-number">4.</span> <span class="toc-text">具体类型划分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3%EF%BC%9F"><span class="toc-number">5.</span> <span class="toc-text">如何解决？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#angr%E5%8F%8D%E7%BC%96%E8%AF%91%E6%B5%81%E7%A8%8B"><span class="toc-number">5.1.</span> <span class="toc-text">angr反编译流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#angr%E6%8E%A7%E5%88%B6%E6%B5%81%E7%BB%93%E6%9E%84%E5%8C%96%E6%B5%81%E7%A8%8B"><span class="toc-number">5.2.</span> <span class="toc-text">angr控制流结构化流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ISD%E4%BC%98%E5%8C%96%E7%9A%84%E5%8F%8D%E4%BC%98%E5%8C%96"><span class="toc-number">5.3.</span> <span class="toc-text">ISD优化的反优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ISC%E4%BC%98%E5%8C%96%E7%9A%84%E5%8F%8D%E4%BC%98%E5%8C%96"><span class="toc-number">5.4.</span> <span class="toc-text">ISC优化的反优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9D%82%E9%A1%B9%E4%BC%98%E5%8C%96"><span class="toc-number">5.5.</span> <span class="toc-text">杂项优化</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E6%9E%9C%E8%AF%84%E4%BC%B0"><span class="toc-number">6.</span> <span class="toc-text">结果评估</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%82%E6%95%B0%E9%80%89%E6%8B%A9"><span class="toc-number">6.1.</span> <span class="toc-text">参数选择</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AF%84%E4%BC%B0%E6%B5%81%E7%A8%8B"><span class="toc-number">6.2.</span> <span class="toc-text">评估流程</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">7.</span> <span class="toc-text">结论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#rev-ng%E4%BD%9C%E8%80%85%E7%9A%84%E5%9B%9E%E5%BA%94"><span class="toc-number">8.</span> <span class="toc-text">rev.ng作者的回应</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-number">9.</span> <span class="toc-text">参考</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2024/08/24/%E3%80%90%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91SAILR/" title="【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation"><img src="/images/misc/default_cover5.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation"/></a><div class="content"><a class="title" href="/2024/08/24/%E3%80%90%E8%AE%BA%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91SAILR/" title="【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation">【论文笔记】Ahoy SAILR! There is No Need to DREAM of C A Compiler-Aware Structuring Algorithm for Binary Decompilation</a><time datetime="2024-08-24T09:41:56.000Z" title="发表于 2024-08-24 17:41:56">2024-08-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/26/angr-ctf%E7%AC%94%E8%AE%B0/" title="angr_ctf笔记"><img src="/images/misc/default_cover7.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="angr_ctf笔记"/></a><div class="content"><a class="title" href="/2024/07/26/angr-ctf%E7%AC%94%E8%AE%B0/" title="angr_ctf笔记">angr_ctf笔记</a><time datetime="2024-07-26T14:33:59.000Z" title="发表于 2024-07-26 22:33:59">2024-07-26</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/19/%E5%A6%82%E4%BD%95%E4%B8%BA%E7%8E%B0%E6%9C%89%E5%8F%8D%E7%BC%96%E8%AF%91%E5%99%A8%E6%9E%84%E5%BB%BARust%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%AD%BE%E5%90%8D%E6%96%87%E4%BB%B6%EF%BC%9F/" title="如何为现有反编译器构建stripped Rust binary所需要的签名文件？"><img src="/images/misc/default_cover7.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="如何为现有反编译器构建stripped Rust binary所需要的签名文件？"/></a><div class="content"><a class="title" href="/2024/07/19/%E5%A6%82%E4%BD%95%E4%B8%BA%E7%8E%B0%E6%9C%89%E5%8F%8D%E7%BC%96%E8%AF%91%E5%99%A8%E6%9E%84%E5%BB%BARust%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%AD%BE%E5%90%8D%E6%96%87%E4%BB%B6%EF%BC%9F/" title="如何为现有反编译器构建stripped Rust binary所需要的签名文件？">如何为现有反编译器构建stripped Rust binary所需要的签名文件？</a><time datetime="2024-07-19T09:43:57.000Z" title="发表于 2024-07-19 17:43:57">2024-07-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler"><img src="/images/misc/default_cover2.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【博文笔记】Restructuring the Binary Ninja Decompiler"/></a><div class="content"><a class="title" href="/2024/07/06/%E3%80%90%E5%8D%9A%E6%96%87%E7%AC%94%E8%AE%B0%E3%80%91Binary-Ninja-4-1-Decompiler-Design/" title="【博文笔记】Restructuring the Binary Ninja Decompiler">【博文笔记】Restructuring the Binary Ninja Decompiler</a><time datetime="2024-07-06T14:07:33.000Z" title="发表于 2024-07-06 22:07:33">2024-07-06</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合"><img src="/images/misc/default_cover4.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Rust+OLLVM平坦化的邪恶组合"/></a><div class="content"><a class="title" href="/2024/07/05/Rust-OLLVM%E5%B9%B3%E5%9D%A6%E5%8C%96%E7%9A%84%E9%82%AA%E6%81%B6%E7%BB%84%E5%90%88/" title="Rust+OLLVM平坦化的邪恶组合">Rust+OLLVM平坦化的邪恶组合</a><time datetime="2024-07-05T15:05:58.000Z" title="发表于 2024-07-05 23:05:58">2024-07-05</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2024 By JANlittle</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.13.0"></script><script src="/js/main.js?v=4.13.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"><script>(() => {
+  const initValine = () => {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, null))
+  }
+
+  const loadValine = async () => {
+    if (typeof Valine === 'function') initValine()
+    else {
+      await getScript('https://cdn.jsdelivr.net/npm/valine@1.5.1/dist/Valine.min.js')
+      initValine()
+    }
+  }
+
+  if ('Valine' === 'Valine' || !false) {
+    if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+    else setTimeout(loadValine, 0)
+  } else {
+    window.loadOtherComment = loadValine
+  }
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
